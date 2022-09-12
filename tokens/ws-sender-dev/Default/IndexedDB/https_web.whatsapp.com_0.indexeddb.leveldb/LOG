@@ -1,0 +1,14 @@
+2022/09/12-08:51:27.879 45a0 Reusing MANIFEST E:\WWW\zapzap\tokens\ws-sender-dev\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2022/09/12-08:51:27.879 45a0 Recovering log #249
+2022/09/12-08:51:27.897 45a0 Reusing old log E:\WWW\zapzap\tokens\ws-sender-dev\Default\IndexedDB\https_web.whatsapp.com_0.indexeddb.leveldb/000249.log 
+2022/09/12-08:51:46.401 31a4 Level-0 table #255: started
+2022/09/12-08:51:46.594 31a4 Level-0 table #255: 1222907 bytes OK
+2022/09/12-08:51:46.637 31a4 Delete type=0 #249
+2022/09/12-08:51:46.640 31a4 Compacting 1@1 + 2@2 files
+2022/09/12-08:51:46.889 31a4 Generated table #256@1: 44170 keys, 2244062 bytes
+2022/09/12-08:51:47.054 31a4 Generated table #257@1: 27743 keys, 1809901 bytes
+2022/09/12-08:51:47.055 31a4 Compacted 1@1 + 2@2 files => 4053963 bytes
+2022/09/12-08:51:47.093 31a4 compacted to: files[ 0 0 2 0 0 0 0 ]
+2022/09/12-08:51:47.099 31a4 Delete type=2 #251
+2022/09/12-08:51:47.099 31a4 Delete type=2 #252
+2022/09/12-08:51:47.099 31a4 Delete type=2 #255
