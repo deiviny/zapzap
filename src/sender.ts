@@ -6,23 +6,31 @@ export type QRCode = {
     attempt: number
 }
 
-export type SessionQr = {
-    [key: string]: QRCode
+export type QRCodeSession = {
+    [index: string]: QRCode
 }
 
+
+
 export type ClientSession = {
-    [key: string]: Whatsapp
+    [index: string]: Whatsapp
+}
+
+export type ConnectedType = {
+    [key: string]: boolean
 }
 
 class Sender {
-    private client: Whatsapp;
+    private client: ClientSession = {};
+    private connectedSession: ConnectedType = {};
+    private qrSession: QRCodeSession = {};
     private connected: boolean = false;
     private qr: QRCode;
-    private sessions: SessionQr;
+    private sessions: Object;
     nameSession: string = "first-session";
     
     get isConnected(): boolean {
-        return this.connected;
+        return this.connectedSession[this.nameSession];
     }
 
     set setNameSession(session: string) {
@@ -34,19 +42,18 @@ class Sender {
     }
 
     get qrCode(): QRCode {
-        return this.qr
+        return this.qrSession[this.nameSession];
     }
 
-    get sessionQr(): SessionQr {
+    get sessionQr(): Object {
         return this.sessions
     }
 
     constructor() {
-        this.initialize()
+        // this.initialize()
     }
 
-    async sendText(to: string, body: string, sessao: string) {
-        
+    async sendText(to: string, body: string, sessao: string) {        
         if (!isValidPhoneNumber(to, "BR")) {
             throw new Error("Thisnumber is not valid")
         }
@@ -55,22 +62,23 @@ class Sender {
 
         phoneNumber = phoneNumber.includes("@c.us")
             ? phoneNumber
-            : `${phoneNumber}@c.us`        
-        await this.client.sendText(phoneNumber, body)
+            : `${phoneNumber}@c.us`       
+             
+        await this.client[sessao].sendText(phoneNumber, body)
     }
 
     private initialize() {
-        const sessionFirst = this.nameSession
+        const sessionFirst = 'session-first'
         const start = (client: Whatsapp) => {
-            this.client = client;
+            this.client[sessionFirst] = client;
             client.onStateChange((state) => {
-                this.connected = state === SocketState.CONNECTED
+                this.connectedSession['sessionFirst'] = state === SocketState.CONNECTED
             })
         }
 
         create({
             session: sessionFirst, //name of session
-            multidevice: true
+            multidevice: false
         })
         .then((client) => start(client))
         .catch((error) => console.error(error));
@@ -79,26 +87,54 @@ class Sender {
     async newsession() {
 
         const status = (statusSession: string) => {
-            this.connected = ["isLogged", "qrReadSuccess", "chatsAvailable"].includes(
+            this.connectedSession[this.nameSession] = ["isLogged", "qrReadSuccess", "chatsAvailable"].includes(
                 statusSession
             )
         }
         const start = (client: Whatsapp) => {
-            this.client = client;
-            client.onStateChange((state) => {
-                this.connected = state === SocketState.CONNECTED
+            this.client[this.nameSession] = client;
+            this.client[this.nameSession].onStateChange((state) => {
+                this.connectedSession[this.nameSession] = state === SocketState.CONNECTED
+            })
+            this.client[this.nameSession].onAnyMessage(message => {
+                console.log("Nova msg na sessao: "+this.nameSession)  
             })
         }
         
-        create(
+        await create(
             this.nameSession,
             (base64Qr: string, asciiQr: string, attempt: number) => {
-                this.qr = { base64Qr, attempt }
-                this.sessions[this.nameSession] = { base64Qr, attempt }
+                this.qrSession[this.nameSession] = { base64Qr, attempt }                
             }
         )
             .then((client) => start(client))
             .catch((error) => console.error(error));
+    }
+
+    async listChats(){
+        return await this.client[this.nameSession].getAllChats();
+    }
+
+    async newMsg(){
+        return await this.client[this.nameSession].getChatContactNewMsg();
+    }
+
+    async getMsg(contact: string, uncludeMe: boolean = true){
+        if (!isValidPhoneNumber(contact, "BR")) {
+            throw new Error("Thisnumber is not valid")
+        }
+
+        let phoneNumber = parsePhoneNumber(contact, "BR")?.format("E.164").replace("+", "") as string
+
+        phoneNumber = phoneNumber.includes("@c.us")
+            ? phoneNumber
+            : `${phoneNumber}@c.us` 
+
+        return await this.client[this.nameSession].loadAndGetAllMessagesInChat(phoneNumber);
+    }
+
+    logout() {
+        this.client[this.nameSession].logout()
     }
 }
 
