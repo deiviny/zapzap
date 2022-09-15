@@ -50,7 +50,7 @@ class Sender {
     }
 
     constructor() {
-        // this.initialize()
+        this.initialize()
     }
 
     async sendText(to: string, body: string, sessao: string) {        
@@ -67,21 +67,21 @@ class Sender {
         await this.client[sessao].sendText(phoneNumber, body)
     }
 
-    private initialize() {
-        const sessionFirst = 'session-first'
-        const start = (client: Whatsapp) => {
-            this.client[sessionFirst] = client;
-            client.onStateChange((state) => {
-                this.connectedSession['sessionFirst'] = state === SocketState.CONNECTED
-            })
-        }
+    private async initialize() {
+        const fs = require('fs');
 
-        create({
-            session: sessionFirst, //name of session
-            multidevice: false
-        })
-        .then((client) => start(client))
-        .catch((error) => console.error(error));
+        fs.readdir('./tokens', { withFileTypes: true }, (error:any, files:any) => {
+            if (error) throw error;
+            const directoriesInDIrectory = files
+                .filter((item:any) => item.isDirectory())
+                .map((item:any) => item.name);            
+            const qtdSession = directoriesInDIrectory.length            
+            for(let i = 0; i < qtdSession; i++){
+                let nameTemp: string = directoriesInDIrectory[i]
+                this.nameSession = nameTemp
+                this.newsession()
+            }
+        });
     }
 
     async newsession() {
@@ -134,7 +134,7 @@ class Sender {
     }
 
     logout() {
-        this.client[this.nameSession].logout()
+        this.client[this.nameSession].close()
     }
 }
 
