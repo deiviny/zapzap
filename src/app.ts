@@ -101,7 +101,16 @@ app.get('/sessionoff', (req: Request, res: Response) => {
     try {
         const { session } = req.body;
         sender.setNameSession = session  
-        sender.logout()        
+        sender.logout()   
+        const fs = require('fs');
+        fs.rm( './tokens/'+session, { recursive:true }, (err:any) => {
+            if(err){
+                // File deletion failed
+                console.error(err.message);
+                return;
+            }
+            console.log("File deleted successfully");
+        })    
     } catch (error) {
         console.error(error);
         res.status(500).json({ status: "error", message: error });

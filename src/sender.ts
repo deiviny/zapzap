@@ -62,9 +62,16 @@ class Sender {
 
         phoneNumber = phoneNumber.includes("@c.us")
             ? phoneNumber
-            : `${phoneNumber}@c.us`       
-             
-        await this.client[sessao].sendText(phoneNumber, body)
+            : `${phoneNumber}@c.us`                   
+        
+        await this.client[this.nameSession]
+                .sendText(phoneNumber, body)
+                .then((result) => {
+                // console.log('Result: ', result); //return object success
+                })
+                .catch((erro) => {
+                console.error('Error when sending: ', erro); //return object error
+                });
     }
 
     private async initialize() {
@@ -96,8 +103,35 @@ class Sender {
             this.client[this.nameSession].onStateChange((state) => {
                 this.connectedSession[this.nameSession] = state === SocketState.CONNECTED
             })
-            this.client[this.nameSession].onAnyMessage(message => {
-                console.log("Nova msg na sessao: "+this.nameSession)  
+            this.client[this.nameSession].onMessage(message => {
+                let msgInicial = [
+                    'bom dia', 
+                    'Bom dia', 
+                    'BOM DIA',
+                    'boa tarde',
+                    'Boa tarde',
+                    'BOA TARDE',
+                    'oi',
+                    'Oi',
+                    'OI',
+                    'Hi',
+                    'hi',
+                    'HI',
+                    'hellow',
+                    'Hellow',
+                    'HELLOW',
+                ] 
+                
+                if (msgInicial.includes(message.body) && message.isGroupMsg === false) {
+                    this.client[this.nameSession]
+                    .sendText(message.from, 'Olá, deseja iniciar um atendimento?')
+                    .then((result) => {
+                    console.log('Result: ', result); //return object success
+                    })
+                    .catch((erro) => {
+                    console.error('Error when sending: ', erro); //return object error
+                    });
+                }
             })
         }
         
@@ -112,7 +146,7 @@ class Sender {
     }
 
     async listChats(){
-        return await this.client[this.nameSession].getAllChats();
+        return await this.client[this.nameSession].getAllChatsContacts();
     }
 
     async newMsg(){
