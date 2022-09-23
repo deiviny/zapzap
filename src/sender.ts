@@ -1,10 +1,14 @@
 import parsePhoneNumber, { isValidPhoneNumber } from "libphonenumber-js";
 import { create, Whatsapp, Message, SocketState } from "venom-bot"
+import fetch from 'node-fetch';
 
 export type QRCode = {
     base64Qr: string
     attempt: number
 }
+
+const apiUrl: string = "https://crm.crmsimpled.com.br"
+
 
 export type QRCodeSession = {
     [index: string]: QRCode
@@ -27,6 +31,8 @@ class Sender {
     private connected: boolean = false;
     private qr: QRCode;
     private sessions: Object;
+    public status: string;
+    public message: string;
     nameSession: string = "first-session";
     
     get isConnected(): boolean {
@@ -85,13 +91,12 @@ class Sender {
             const qtdSession = directoriesInDIrectory.length            
             for(let i = 0; i < qtdSession; i++){
                 let nameTemp: string = directoriesInDIrectory[i]
-                this.nameSession = nameTemp
-                this.newsession()
+                this.nameSession = nameTemp                
             }
         });
     }
 
-    async newsession() {
+    newsession() {
 
         const status = (statusSession: string) => {
             this.connectedSession[this.nameSession] = ["isLogged", "qrReadSuccess", "chatsAvailable"].includes(
@@ -102,6 +107,7 @@ class Sender {
             this.client[this.nameSession] = client;
             this.client[this.nameSession].onStateChange((state) => {
                 this.connectedSession[this.nameSession] = state === SocketState.CONNECTED
+                console.log(this.connectedSession[this.nameSession])
             })
             this.client[this.nameSession].onMessage(message => {
                 let msgInicial = [
@@ -122,20 +128,16 @@ class Sender {
                     'HELLOW',
                 ] 
                 
-                if (msgInicial.includes(message.body) && message.isGroupMsg === false) {
-                    this.client[this.nameSession]
-                    .sendText(message.from, 'Olá, deseja iniciar um atendimento?')
-                    .then((result) => {
-                    console.log('Result: ', result); //return object success
-                    })
-                    .catch((erro) => {
-                    console.error('Error when sending: ', erro); //return object error
-                    });
+                if (message.isGroupMsg === false) {           
+                    console.log(message)                             
+                    this.enviarMsgApiSimpled(this.nameSession, '981888488', message.body)           
                 }
             })
         }
+
         
-        await create(
+        
+        create(
             this.nameSession,
             (base64Qr: string, asciiQr: string, attempt: number) => {
                 this.qrSession[this.nameSession] = { base64Qr, attempt }                
@@ -143,6 +145,26 @@ class Sender {
         )
             .then((client) => start(client))
             .catch((error) => console.error(error));
+    }
+
+    async setStatusMessage(_status: string, _message: string) {
+        this.status = _status;
+        this.message = _message;
+    }
+
+    async enviarMsgApiSimpled(sessao: string, numero: string, msg: string){
+        var requestOptions: any = {
+            method: 'GET',
+            redirect: 'follow'
+            };             
+        try{ 
+            const response = await fetch(apiUrl + `/api/whatsapp/received?sessao_whats=${sessao}&numero=${numero}&msg=${msg}`, requestOptions)            
+            const data = await response.json()            
+            this.setStatusMessage(data.status, data.message)
+        } catch (err) {
+            console.log(err);
+        }
+
     }
 
     async listChats(){

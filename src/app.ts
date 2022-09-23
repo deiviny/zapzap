@@ -8,18 +8,26 @@ const app = express();
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
-app.get('/newsession', async (req: Request, res: Response) => {  
+app.get('/newsession', (req: Request, res: Response) => {  
     const { session } = req.body;  
-    sender.setNameSession = session    
-    
-    try {              
-        await sender.newsession().then((dados) => {
+    sender.setNameSession = session        
+    try {                      
+        if(sender.qrCode !== undefined){
             return res.send({ 
                 qr_code: sender.qrCode,
                 connected: sender.isConnected,
                 name_session: sender.nameSession
             })
-        });        
+        } else {
+            sender.newsession(); 
+            return res.send({ 
+                qr_code: sender.qrCode,
+                connected: sender.isConnected,
+                name_session: sender.nameSession
+            })
+        }
+             
+        
     } catch (error) {
         console.error(error);
         res.status(500).json({ status: "error", message: error });
@@ -135,6 +143,16 @@ app.get("/ativar-sessions", (req: Request, res: Response) => {
         console.error(error);
         res.status(500).json({ status: "error", message: error });
     }
+})
+
+app.get('/send-msg-api', async (req: Request, res: Response) => {
+    const { number, message, session } = req.body;
+    await sender.enviarMsgApiSimpled(session, number, message)
+    
+    return res.send({ 
+        status: sender.status,
+        msg: sender.message,
+    })
 })
 
 app.listen(3333, () => {
