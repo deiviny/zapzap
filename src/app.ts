@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 
-app.get('/newsession', (req: Request, res: Response) => {  
+app.get('/newsession',async (req: Request, res: Response) => {  
     const { session } = req.body;  
     sender.setNameSession = session        
     try {                      
@@ -19,7 +19,7 @@ app.get('/newsession', (req: Request, res: Response) => {
                 name_session: sender.nameSession
             })
         } else {
-            sender.newsession(); 
+            await sender.newsession();             
             return res.send({ 
                 qr_code: sender.qrCode,
                 connected: sender.isConnected,
@@ -37,9 +37,11 @@ app.get('/newsession', (req: Request, res: Response) => {
 app.get('/status', (req: Request, res: Response) => {    
     const { session } = req.body;
     sender.setNameSession = session  
+    let status = sender.isConnected ?? 'Disconnected'
     return res.send({ 
         qr_code: sender.qrCode,
-        connected: sender.isConnected
+        connected: sender.isConnected,
+        status: status
     })
 })
 
@@ -96,12 +98,12 @@ app.get('/getmsg', async (req: Request, res: Response) => {
     }
 })
 
-app.get('/delete-session', (req: Request, res: Response) => {    
+app.get('/close', (req: Request, res: Response) => {    
     const { session } = req.body;
-    const files = './tokens/' + session + '.data.json';
-    return res.send({ 
-        qr_code: sender.qrCode,
-        connected: sender.isConnected
+    sender.setNameSession = session 
+    sender.close();
+    return res.send({         
+        status: "success"
     })
 })
 

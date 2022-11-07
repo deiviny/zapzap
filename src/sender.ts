@@ -81,32 +81,36 @@ class Sender {
     }
 
     private async initialize() {
-        const fs = require('fs');
+        
+        // const fs = require('fs');
 
-        fs.readdir('./tokens', { withFileTypes: true }, (error:any, files:any) => {
-            if (error) throw error;
-            const directoriesInDIrectory = files
-                .filter((item:any) => item.isDirectory())
-                .map((item:any) => item.name);            
-            const qtdSession = directoriesInDIrectory.length            
-            for(let i = 0; i < qtdSession; i++){
-                let nameTemp: string = directoriesInDIrectory[i]
-                this.nameSession = nameTemp                
-            }
-        });
+        // fs.readdir('./tokens', { withFileTypes: true }, (error:any, files:any) => {
+        //     if (error) throw error;
+        //     const directoriesInDIrectory = files
+        //         .filter((item:any) => item.isDirectory())
+        //         .map((item:any) => item.name);            
+        //     const qtdSession = directoriesInDIrectory.length            
+        //     for(let i = 0; i < qtdSession; i++){
+        //         let nameTemp: string = directoriesInDIrectory[i]
+        //         this.nameSession = nameTemp                
+        //     }
+        // });
     }
-
-    newsession() {
+    close(){
+        this.client[this.nameSession].close()
+    }
+    async newsession() {
 
         const status = (statusSession: string) => {
             this.connectedSession[this.nameSession] = ["isLogged", "qrReadSuccess", "chatsAvailable"].includes(
                 statusSession
             )
         }
+        
         const start = (client: Whatsapp) => {
             this.client[this.nameSession] = client;
-            this.client[this.nameSession].onStateChange((state) => {
-                this.connectedSession[this.nameSession] = state === SocketState.CONNECTED
+            this.client[this.nameSession].onStateChange((state) => {                
+                this.connectedSession[this.nameSession] = state === SocketState.CONNECTED                                
                 console.log(this.connectedSession[this.nameSession])
             })
             this.client[this.nameSession].onMessage(message => {
@@ -126,25 +130,23 @@ class Sender {
                     'hellow',
                     'Hellow',
                     'HELLOW',
-                ] 
-                
-                if (message.isGroupMsg === false) {           
-                    console.log(message)                             
-                    this.enviarMsgApiSimpled(this.nameSession, '981888488', message.body)           
+                ]
+                console.log(message.body)
+                if (message.isGroupMsg === false) {
+                    // this.enviarMsgApiSimpled(this.nameSession, '981888488', message.body)           
                 }
-            })
+            })            
         }
-
-        
-        
+        const qr = (base64Qr: string, asciiQr: string, attempt: number) => {
+            this.qrSession[this.nameSession] = { base64Qr, attempt }                                
+        }
+                
         create(
             this.nameSession,
-            (base64Qr: string, asciiQr: string, attempt: number) => {
-                this.qrSession[this.nameSession] = { base64Qr, attempt }                
-            }
+            qr
         )
-            .then((client) => start(client))
-            .catch((error) => console.error(error));
+        .then((client) => start(client))
+        .catch((error) => console.error(error));
     }
 
     async setStatusMessage(_status: string, _message: string) {
