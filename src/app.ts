@@ -10,22 +10,59 @@ app.use(express.urlencoded({ extended: false }))
 
 app.get('/newsession',async (req: Request, res: Response) => {  
     const { session } = req.body;  
-    sender.setNameSession = session        
-    try {                      
-        if(sender.qrCode !== undefined){
-            return res.send({ 
-                qr_code: sender.qrCode,
-                connected: sender.isConnected,
-                name_session: sender.nameSession
-            })
-        } else {
-            await sender.newsession();             
-            return res.send({ 
-                qr_code: sender.qrCode,
-                connected: sender.isConnected,
-                name_session: sender.nameSession
-            })
-        }
+    sender.setNameSession = session       
+    let status = sender.isConnected ?? 'Disconnected' 
+    try {     
+        console.log(status)                         
+        switch(status) {
+            case "Disconnected":
+                await sender.newsession();             
+                return res.send({ 
+                    qr_code: sender.qrCode,
+                    status: status,
+                    name_session: sender.nameSession
+                }) 
+                break;
+            case "isLogged":
+                return res.send({      
+                    qr_code: sender.qrCode,               
+                    status: status,
+                    name_session: sender.nameSession
+                })
+                break;
+            case "notLogged": 
+                return res.send({ 
+                    qr_code: sender.qrCode,
+                    status: status,
+                    name_session: sender.nameSession
+                })                   
+                break;
+            case "browserClose":
+                return res.send({                     
+                    status: status,
+                    name_session: sender.nameSession
+                })                     
+                break;
+            case "qrReadSuccess": 
+            return res.send({                     
+                    status: status,
+                    name_session: sender.nameSession
+                })                    
+                break;
+            case "qrReadFail":
+                return res.send({                     
+                    status: status,
+                    name_session: sender.nameSession
+                })                     
+                break;
+            default:
+                return res.send({ 
+                    qr_code: sender.qrCode,
+                    status: status,
+                    name_session: sender.nameSession
+                })
+                break;
+        }    
              
         
     } catch (error) {
@@ -39,8 +76,7 @@ app.get('/status', (req: Request, res: Response) => {
     sender.setNameSession = session  
     let status = sender.isConnected ?? 'Disconnected'
     return res.send({ 
-        qr_code: sender.qrCode,
-        connected: sender.isConnected,
+        qr_code: sender.qrCode,        
         status: status
     })
 })
@@ -102,6 +138,7 @@ app.get('/close', (req: Request, res: Response) => {
     const { session } = req.body;
     sender.setNameSession = session 
     sender.close();
+    sender.logout()
     return res.send({         
         status: "success"
     })

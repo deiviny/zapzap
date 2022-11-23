@@ -21,7 +21,7 @@ export type ClientSession = {
 }
 
 export type ConnectedType = {
-    [key: string]: boolean
+    [key: string]: any
 }
 
 class Sender {
@@ -32,10 +32,10 @@ class Sender {
     private qr: QRCode;
     private sessions: Object;
     public status: string;
-    public message: string;
+    public message: string;    
     nameSession: string = "first-session";
     
-    get isConnected(): boolean {
+    get isConnected(): string {
         return this.connectedSession[this.nameSession];
     }
 
@@ -99,53 +99,43 @@ class Sender {
     close(){
         this.client[this.nameSession].close()
     }
-    async newsession() {
-
-        const status = (statusSession: string) => {
-            this.connectedSession[this.nameSession] = ["isLogged", "qrReadSuccess", "chatsAvailable"].includes(
-                statusSession
-            )
-        }
+    newsession() {
         
         const start = (client: Whatsapp) => {
             this.client[this.nameSession] = client;
             this.client[this.nameSession].onStateChange((state) => {                
-                this.connectedSession[this.nameSession] = state === SocketState.CONNECTED                                
-                console.log(this.connectedSession[this.nameSession])
+                this.connectedSession[this.nameSession] = state === SocketState.CONNECTED                                                
             })
-            this.client[this.nameSession].onMessage(message => {
-                let msgInicial = [
-                    'bom dia', 
-                    'Bom dia', 
-                    'BOM DIA',
-                    'boa tarde',
-                    'Boa tarde',
-                    'BOA TARDE',
-                    'oi',
-                    'Oi',
-                    'OI',
-                    'Hi',
-                    'hi',
-                    'HI',
-                    'hellow',
-                    'Hellow',
-                    'HELLOW',
-                ]
-                console.log(message.body)
-                if (message.isGroupMsg === false) {
-                    // this.enviarMsgApiSimpled(this.nameSession, '981888488', message.body)           
+            this.client[this.nameSession].onMessage((message) => {
+                console.log("chegou msg")
+                if (message.body === 'Hi' && message.isGroupMsg === false) {
+                    this.client[this.nameSession]
+                    .sendText(message.from, 'Welcome Venom 🕷')
+                    .then((result) => {
+                    console.log('Result: ', result); //return object success
+                    })
+                    .catch((erro) => {
+                    console.error('Error when sending: ', erro); //return object error
+                    });
                 }
             })            
         }
         const qr = (base64Qr: string, asciiQr: string, attempt: number) => {
             this.qrSession[this.nameSession] = { base64Qr, attempt }                                
         }
+
+        const status = (statusSession: string, sessionName: string) => {            
+            this.connectedSession[this.nameSession] = statusSession
+        }
                 
         create(
             this.nameSession,
-            qr
+            qr,
+            status          
         )
-        .then((client) => start(client))
+        .then((client) => {            
+            start(client)
+        })
         .catch((error) => console.error(error));
     }
 
