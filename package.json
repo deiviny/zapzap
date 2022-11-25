@@ -2,11 +2,11 @@
   "name": "zapzap",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "build": "rimraf ./build && tsc",
     "dev": "nodemon",
-    "start": "build && build/index.js"
+    "start": "node build/app.js"    
   },
   "repository": {
     "type": "git",
