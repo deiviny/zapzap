@@ -7,9 +7,6 @@ export type QRCode = {
     attempt: number
 }
 
-const apiUrl: string = "https://crm.crmsimpled.com.br"
-
-
 export type QRCodeSession = {
     [index: string]: QRCode
 }
@@ -142,21 +139,6 @@ class Sender {
     async setStatusMessage(_status: string, _message: string) {
         this.status = _status;
         this.message = _message;
-    }
-
-    async enviarMsgApiSimpled(sessao: string, numero: string, msg: string){
-        var requestOptions: any = {
-            method: 'GET',
-            redirect: 'follow'
-            };             
-        try{ 
-            const response = await fetch(apiUrl + `/api/whatsapp/received?sessao_whats=${sessao}&numero=${numero}&msg=${msg}`, requestOptions)            
-            const data = await response.json()            
-            this.setStatusMessage(data.status, data.message)
-        } catch (err) {
-            console.log(err);
-        }
-
     }
 
     async listChats(){

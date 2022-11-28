@@ -193,7 +193,25 @@ app.get('/send-msg-api', async (req: Request, res: Response) => {
         msg: sender.message,
     })
 })
+app.get("/status-server", (req: Request, res: Response) => {   
+    try {
+        const fs = require('fs');
 
+        fs.readdir('./tokens', { withFileTypes: true }, (error:any, files:any) => {
+            if (error) throw error;
+            const directoriesInDIrectory = files
+                .filter((item:any) => item.isDirectory())
+                .map((item:any) => item.name);
+
+            console.log(directoriesInDIrectory);
+        });
+        
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ status: "error", message: error });
+    }
+})
 app.listen(3333, () => {
     console.log(' Server started')
 })
