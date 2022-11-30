@@ -5,4 +5,3 @@ node_modules
 tokens
 build
 .vscode
-package-lock.json

@@ -173,8 +173,9 @@ app.get("/ativar-sessions", (req: Request, res: Response) => {
             const directoriesInDIrectory = files
                 .filter((item:any) => item.isDirectory())
                 .map((item:any) => item.name);
-
-            console.log(directoriesInDIrectory);
+                return res.send({ 
+                    msg: directoriesInDIrectory
+                })
         });
         
 
@@ -184,7 +185,15 @@ app.get("/ativar-sessions", (req: Request, res: Response) => {
     }
 })
 
-
+app.get('/send-msg-api', async (req: Request, res: Response) => {
+    const { number, message, session } = req.body;
+    await sender.enviarMsgApiSimpled(session, number, message)
+    
+    return res.send({ 
+        status: sender.status,
+        msg: sender.message,
+    })
+})
 app.get("/status-server", (req: Request, res: Response) => {   
     try {
         const fs = require('fs');

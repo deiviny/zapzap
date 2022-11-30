@@ -7,6 +7,9 @@ export type QRCode = {
     attempt: number
 }
 
+const apiUrl: string = "https://crm.crmsimpled.com.br"
+
+
 export type QRCodeSession = {
     [index: string]: QRCode
 }
@@ -79,19 +82,20 @@ class Sender {
 
     private async initialize() {
         
-        // const fs = require('fs');
+        const fs = require('fs');
 
-        // fs.readdir('./tokens', { withFileTypes: true }, (error:any, files:any) => {
-        //     if (error) throw error;
-        //     const directoriesInDIrectory = files
-        //         .filter((item:any) => item.isDirectory())
-        //         .map((item:any) => item.name);            
-        //     const qtdSession = directoriesInDIrectory.length            
-        //     for(let i = 0; i < qtdSession; i++){
-        //         let nameTemp: string = directoriesInDIrectory[i]
-        //         this.nameSession = nameTemp                
-        //     }
-        // });
+        fs.readdir('./tokens', { withFileTypes: true }, (error:any, files:any) => {
+            if (error) throw error;
+            const directoriesInDIrectory = files
+                .filter((item:any) => item.isDirectory())
+                .map((item:any) => item.name);            
+            const qtdSession = directoriesInDIrectory.length            
+            for(let i = 0; i < qtdSession; i++){
+                let nameTemp: string = directoriesInDIrectory[i]
+                this.nameSession = nameTemp 
+                this.newsession()
+            }
+        });
     }
     close(){
         this.client[this.nameSession].close()
@@ -101,7 +105,7 @@ class Sender {
         const start = (client: Whatsapp) => {
             this.client[this.nameSession] = client;
             this.client[this.nameSession].onStateChange((state) => {                
-                this.connectedSession[this.nameSession] = state === SocketState.CONNECTED                                                
+                this.connectedSession[this.nameSession] = state                                                
             })
             this.client[this.nameSession].onMessage((message) => {
                 console.log("chegou msg")
@@ -109,10 +113,10 @@ class Sender {
                     this.client[this.nameSession]
                     .sendText(message.from, 'Welcome Venom 🕷')
                     .then((result) => {
-                    console.log('Result: ', result); //return object success
+                        console.log('Result: ', result); //return object success
                     })
                     .catch((erro) => {
-                    console.error('Error when sending: ', erro); //return object error
+                        console.error('Error when sending: ', erro); //return object error
                     });
                 }
             })            
@@ -127,8 +131,7 @@ class Sender {
                 
         create(
             this.nameSession,
-            qr,
-            status          
+            qr
         )
         .then((client) => {            
             start(client)
@@ -139,6 +142,21 @@ class Sender {
     async setStatusMessage(_status: string, _message: string) {
         this.status = _status;
         this.message = _message;
+    }
+
+    async enviarMsgApiSimpled(sessao: string, numero: string, msg: string){
+        var requestOptions: any = {
+            method: 'GET',
+            redirect: 'follow'
+            };             
+        try{ 
+            const response = await fetch(apiUrl + `/api/whatsapp/received?sessao_whats=${sessao}&numero=${numero}&msg=${msg}`, requestOptions)            
+            const data = await response.json()            
+            this.setStatusMessage(data.status, data.message)
+        } catch (err) {
+            console.log(err);
+        }
+
     }
 
     async listChats(){
