@@ -1,7 +1,7 @@
 const express = require('express');
 const venom = require('venom-bot');
 const dotenv = require('dotenv');
-
+const mysql = require('mysql2/promise');
 // Carrega as variáveis de ambiente do arquivo .env
 dotenv.config();
 
@@ -10,16 +10,31 @@ const port = process.env.PORT || 3000;
 const sessions = {};
 const sessionsTemp = {};
 const qrTemp = {};
+// Configura a conexão com o banco de dados
+const pool = mysql.createPool({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+  });
+  
 
 app.use(express.json());
 
-function verificarServicos(){
-    
+async function verificarServicos() {
+    try {
+        const [rows] = await pool.query('SELECT * FROM whatssapp_servicos WHERE status = ?', ['pendente']);
+        return rows;
+    } catch (err) {
+        console.error('Erro ao buscar serviços:', err);
+        throw err;
+    }
 }
 
-function createSession(sessionName) {
+async function createSession(sessionName, id_servico = null) {
   var sessionAtual = sessionName;
-  venom
+  await venom
     .create(
       sessionName,
       (base64Qrimg, asciiQR, attempts, urlCode) => {
@@ -33,8 +48,8 @@ function createSession(sessionName) {
           attempts: attempts,
           urlCode: urlCode
         }
-        console.log(json_dados);
-        qrTemp[sessionAtual] = json_dados;
+        // console.log(json_dados);
+        qrTemp[sessionAtual] = json_dados;        
       },
       (statusSession, session) => {
         console.log('Status da sessão:', statusSession); // Mostra o status da sessão
@@ -100,6 +115,78 @@ function start(client, sessionName) {
   });
 }
 
+async function cadastrarServico(dados) {
+    try {
+        const [result] = await pool.query('INSERT INTO whatssapp_servicos (id_usuario, id_empresa, servico, payload) VALUES (?, ?, ?, ?)', [dados.id_usuario, dados.id_empresa, dados.servico, JSON.stringify(dados.payload)]);
+        return result.insertId;
+    } catch (err) {
+        console.error('Erro ao cadastrar serviço:', err);
+        throw err;
+    }
+}
+
+async function processarServicos() {
+    const servicos = await verificarServicos();
+    for (const servico of servicos) {
+        console.log(servico.servico);
+        let sessionName = "";
+        switch (servico.servico) {
+            case 'create-session':
+                sessionName = servico.payload;
+                // sessionName é um texto gostaria de passar para json
+                sessionName = JSON.parse(sessionName).sessionName;                
+                createSession(sessionName);
+                atualizarServico(servico.id, '2');          
+                let json = {"sessionName": sessionName}
+                // json = JSON.stringify(json);
+                let newService = {
+                    'id_usuario': servico.id_usuario,
+                    'id_empresa': servico.id_empresa,
+                    'servico': 'qr-code-temp',
+                    'payload': json
+                };
+                cadastrarServico(newService); 
+                
+                break;
+            case 'qr-code-temp':
+                sessionName = servico.payload;
+                // sessionName é um texto gostaria de passar para json
+                sessionName = JSON.parse(sessionName).sessionName;   
+                
+                let qrCodeTempJson = qrTemp[sessionName];         
+                if (qrTemp[sessionName]) {
+                    await salvarQrCodeTemp(servico.id, qrCodeTempJson);
+                    await atualizarServico(servico.id, '2');
+                }
+                break;
+            default:
+                console.error('Serviço não encontrado:', servico.servico);
+        }
+        // Aqui você pode adicionar o código para processar cada serviço
+    }
+}
+async function atualizarServico(id, status) {
+    try {
+        await pool.query('UPDATE whatssapp_servicos SET status = ? WHERE id = ?', [status, id]);
+    } catch (err) {
+        console.error('Erro ao atualizar serviço:', err);
+        throw err;
+    }
+}
+
+async function salvarQrCodeTemp(id, response) {
+    try {
+        base64Qrimg = response.base64Qrimg;
+        await pool.query('UPDATE whatssapp_servicos SET response = ? WHERE id = ?', [base64Qrimg, id]);
+    } catch (err) {
+        console.error('Erro ao salvar QR Code Temp:', err);
+        throw err;
+    }
+}
+async function verificarPeriodicamente() {
+    await processarServicos();
+    setTimeout(verificarPeriodicamente, 5000);
+}
 
 app.post('/create-session', (req, res) => {
     const { sessionName } = req.body;
@@ -150,11 +237,12 @@ app.delete('/remove-session/:sessionName', (req, res) => {
     res.status(200).send('Sessão removida');
 });
 
-app.listen(port, () => {
-    console.log(`Servidor rodando na porta ${port}`);    
-});
-
 app.get('/qr-temp/:sessionName', (req, res) => {
     const { sessionName } = req.params;
     res.status(200).send(qrCodeTemp(sessionName));
+});
+
+app.listen(port, () => {
+    console.log(`Servidor rodando na porta ${port}`);   
+    verificarPeriodicamente();
 });
