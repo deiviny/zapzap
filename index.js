@@ -159,10 +159,27 @@ async function processarServicos() {
                     await atualizarServico(servico.id, '2');
                 }
                 break;
+             case 'status-session':
+              sessionName = servico.payload;
+              // sessionName é um texto gostaria de passar para json
+              sessionName = JSON.parse(sessionName).sessionName;
+              let status = statusSession(sessionName);
+              if (status) {
+                  await atualizarStatusWhatsapp(servico.id, status);
+                  await atualizarServico(servico.id, '2');
+              }
             default:
                 console.error('Serviço não encontrado:', servico.servico);
         }
         // Aqui você pode adicionar o código para processar cada serviço
+    }
+}
+async function atualizarStatusWhatsapp(id, response) {
+    try {
+        await pool.query('UPDATE whatssapp_servicos SET response = ? WHERE id = ?', [response, id]);
+    } catch (err) {
+        console.error('Erro ao atualizar serviço:', err);
+        throw err;
     }
 }
 async function atualizarServico(id, status) {
