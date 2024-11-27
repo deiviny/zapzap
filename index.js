@@ -9,6 +9,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 const sessions = {};
 const sessionsTemp = {};
+const qrTemp = {};
 
 app.use(express.json());
 
@@ -17,14 +18,23 @@ function verificarServicos(){
 }
 
 function createSession(sessionName) {
+  var sessionAtual = sessionName;
   venom
     .create(
       sessionName,
       (base64Qrimg, asciiQR, attempts, urlCode) => {
-        console.log('Number of attempts to read the qrcode: ', attempts);
-        console.log('Terminal qrcode: ', asciiQR);
-        console.log('base64 image string qrcode: ', base64Qrimg);
-        console.log('urlCode (data-ref): ', urlCode);
+        // console.log('Number of attempts to read the qrcode: ', attempts);
+        // console.log('Terminal qrcode: ', asciiQR);
+        // console.log('base64 image string qrcode: ', base64Qrimg);
+        // console.log('urlCode (data-ref): ', urlCode);
+        let json_dados = {
+          base64Qrimg: base64Qrimg,
+          asciiQR: asciiQR,
+          attempts: attempts,
+          urlCode: urlCode
+        }
+        console.log(json_dados);
+        qrTemp[sessionAtual] = json_dados;
       },
       (statusSession, session) => {
         console.log('Status da sessão:', statusSession); // Mostra o status da sessão
@@ -58,6 +68,14 @@ function getQrCode64(sessionName) {
     return client.getQrCode();
 }
 
+function qrCodeTemp(sessionName) {
+    const client = qrTemp[sessionName];
+    if (!client) {
+        return 'Sessão não encontrada';
+    }
+    return client;
+}
+
 function removeSession(sessionName) {
     const client = sessions[sessionName];
     if (client) {
@@ -67,19 +85,19 @@ function removeSession(sessionName) {
 }
 
 function start(client, sessionName) {
-    sessions[sessionName] = client;
-    client.onMessage((message) => {
-        if (message.body === 'Oi' && message.isGroupMsg === false) {
-            client
-                .sendText(message.from, 'Olá! Como posso ajudar?')
-                .then((result) => {
-                    // console.log('Mensagem enviada:', result);
-                })
-                .catch((error) => {
-                    // console.error('Erro ao enviar mensagem:', error);
-                });
-        }
-    });
+  sessions[sessionName] = client;
+  client.onMessage((message) => {
+    // if (message.body === 'Oi' && message.isGroupMsg === false) {
+    //   client
+    //     .sendText(message.from, 'Olá! Como posso ajudar?')
+    //     .then((result) => {
+    //       console.log('Mensagem enviada:', result);
+    //     })
+    //     .catch((error) => {
+    //       console.error('Erro ao enviar mensagem:', error);
+    //     });
+    // }
+  });
 }
 
 
@@ -134,4 +152,9 @@ app.delete('/remove-session/:sessionName', (req, res) => {
 
 app.listen(port, () => {
     console.log(`Servidor rodando na porta ${port}`);    
+});
+
+app.get('/qr-temp/:sessionName', (req, res) => {
+    const { sessionName } = req.params;
+    res.status(200).send(qrCodeTemp(sessionName));
 });
