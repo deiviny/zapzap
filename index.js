@@ -1,11 +1,20 @@
 const express = require('express');
 const venom = require('venom-bot');
+const dotenv = require('dotenv');
+
+// Carrega as variáveis de ambiente do arquivo .env
+dotenv.config();
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const sessions = {};
+const sessionsTemp = {};
 
 app.use(express.json());
+
+function verificarServicos(){
+    
+}
 
 function createSession(sessionName) {
   venom
@@ -30,6 +39,8 @@ function createSession(sessionName) {
       console.log(error);
     });
 }
+
+ 
 
 function statusSession(sessionName) {
     const client = sessions[sessionName];
@@ -56,55 +67,58 @@ function removeSession(sessionName) {
 }
 
 function start(client, sessionName) {
-  sessions[sessionName] = client;
-  client.onMessage((message) => {
-    console.log(`Nova mensagem na sessão ${sessionName}:`, message);
-    if (message.body === 'Oi' && message.isGroupMsg === false) {
-      client
-        .sendText(message.from, 'Olá! Como posso ajudar?')
-        .then((result) => {
-          console.log('Mensagem enviada:', result);
-        })
-        .catch((error) => {
-          console.error('Erro ao enviar mensagem:', error);
-        });
-    }
-  });
+    sessions[sessionName] = client;
+    client.onMessage((message) => {
+        if (message.body === 'Oi' && message.isGroupMsg === false) {
+            client
+                .sendText(message.from, 'Olá! Como posso ajudar?')
+                .then((result) => {
+                    // console.log('Mensagem enviada:', result);
+                })
+                .catch((error) => {
+                    // console.error('Erro ao enviar mensagem:', error);
+                });
+        }
+    });
 }
 
 
 app.post('/create-session', (req, res) => {
-  const { sessionName } = req.body;
-  if (sessions[sessionName]) {
-    return res.status(400).send('Sessão já existe');
-  }
-  createSession(sessionName);
-  res.status(200).send('Sessão criada');
+    const { sessionName } = req.body;
+    if (sessions[sessionName]) {
+        return res.status(400).send('Sessão já existe');
+    }
+    createSession(sessionName);
+    res.status(200).send('Sessão criada');
 });
 
 app.post('/send-message', (req, res) => {
-  const { sessionName, to, message } = req.body;
-  const client = sessions[sessionName];
-  if (!client) {
-    return res.status(400).send('Sessão não encontrada');
-  }
-  client
-    .sendText(to, message)
-    .then((result) => {
-      res.status(200).send('Mensagem enviada');
-    })
-    .catch((error) => {
-      res.status(500).send('Erro ao enviar mensagem');
-    });
+    const { sessionName, to, message } = req.body;
+    const client = sessions[sessionName];
+    if (!client) {
+        return res.status(400).send('Sessão não encontrada');
+    }
+    client
+        .sendText(to, message)
+        .then((result) => {
+            res.status(200).send('Mensagem enviada');
+        })
+        .catch((error) => {
+            res.status(500).send('Erro ao enviar mensagem');
+        });
 });
 
+app.get('/qr-code-temp/:sessionName', (req, res) => {
+    const { sessionName } = req.params;
+    res.status(200).send(sessionsTemp[sessionName]);
+});
 app.get('/qr-code/:sessionName', (req, res) => {
     const { sessionName } = req.params;
     res.status(200).send(getQrCode64(sessionName));
 });
 
 app.get('/sessions', (req, res) => {
-  res.status(200).json(Object.keys(sessions));
+    res.status(200).json(Object.keys(sessions));
 });
 
 app.get('/status-session/:sessionName', (req, res) => {
@@ -119,5 +133,5 @@ app.delete('/remove-session/:sessionName', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+    console.log(`Servidor rodando na porta ${port}`);    
 });
