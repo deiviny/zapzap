@@ -9,6 +9,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 const sessions = {};
 const sessionsTemp = {};
+const sessionsStatus = {};
 const qrTemp = {};
 // Configura a conexão com o banco de dados
 const pool = mysql.createPool({
@@ -24,7 +25,7 @@ app.use(express.json());
 
 async function verificarServicos() {
     try {
-        const [rows] = await pool.query('SELECT * FROM whatssapp_servicos WHERE status = ?', ['pendente']);
+        const [rows] = await pool.query('SELECT * FROM whatssapp_servicos WHERE status = ?', ['1']);
         return rows;
     } catch (err) {
         console.error('Erro ao buscar serviços:', err);
@@ -52,8 +53,7 @@ async function createSession(sessionName, id_servico = null) {
         qrTemp[sessionAtual] = json_dados;        
       },
       (statusSession, session) => {
-        console.log('Status da sessão:', statusSession); // Mostra o status da sessão
-        console.log('Sessão:', session); // Mostra a sessão
+        sessionsStatus[session] = statusSession;
       },
       {
         multidevice: true, // Habilita o suporte a múltiplos dispositivos
@@ -68,11 +68,11 @@ async function createSession(sessionName, id_servico = null) {
  
 
 function statusSession(sessionName) {
-    const client = sessions[sessionName];
+    const client = sessionsStatus[sessionName];
     if (!client) {
         return 'Sessão não encontrada';
     }
-    return client.getState();
+    return client;
 }
 
 function getQrCode64(sessionName) {
@@ -96,6 +96,9 @@ function removeSession(sessionName) {
     if (client) {
         client.close();
         delete sessions[sessionName];
+        delete sessionsTemp[sessionName];
+        delete sessionsStatus[sessionName];
+        delete qrTemp[sessionName];
     }
 }
 
@@ -159,15 +162,43 @@ async function processarServicos() {
                     await atualizarServico(servico.id, '2');
                 }
                 break;
-             case 'status-session':
-              sessionName = servico.payload;
-              // sessionName é um texto gostaria de passar para json
-              sessionName = JSON.parse(sessionName).sessionName;
-              let status = statusSession(sessionName);
-              if (status) {
-                  await atualizarStatusWhatsapp(servico.id, status);
-                  await atualizarServico(servico.id, '2');
-              }
+            case 'status-session':
+                sessionName = servico.payload;
+                // sessionName é um texto gostaria de passar para json
+                sessionName = JSON.parse(sessionName).sessionName;
+                let status = statusSession(sessionName);
+                console.log(status)
+                if (status) {
+                    await atualizarStatusWhatsapp(servico.id, status);
+                    await atualizarServico(servico.id, '2');
+                }
+            break;
+            case "remove-session":
+                sessionName = servico.payload;
+                // sessionName é um texto gostaria de passar para json
+                sessionName = JSON.parse(sessionName).sessionName;
+                removeSession(sessionName);
+                await atualizarServico(servico.id, '2');
+                break;
+            case "send-message":
+                let dados = JSON.parse(servico.payload);
+                let sessionName = dados.sessionName;
+                let to = dados.to;
+                let message = dados.message;
+                const client = sessions[sessionName];
+                if (!client) {
+                    return res.status(400).send('Sessão não encontrada');
+                }
+                client
+                    .sendText(to, message)
+                    .then((result) => {
+                        res.status(200).send('Mensagem enviada');
+                    })
+                    .catch((error) => {
+                        res.status(500).send('Erro ao enviar mensagem');
+                    });
+                await atualizarServico(servico.id, '2');
+                break;
             default:
                 console.error('Serviço não encontrado:', servico.servico);
         }
