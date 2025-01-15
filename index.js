@@ -24,7 +24,7 @@ app.use(express.json());
 
 async function verificarServicos() {
     try {
-        const [rows] = await pool.query('SELECT * FROM whatssapp_servicos WHERE status = ?', ['pendente']);
+        const [rows] = await pool.query('SELECT * FROM whatssapp_servicos WHERE status = ?', ['1']);
         return rows;
     } catch (err) {
         console.error('Erro ao buscar serviços:', err);
@@ -128,11 +128,15 @@ async function cadastrarServico(dados) {
 async function processarServicos() {
     const servicos = await verificarServicos();
     for (const servico of servicos) {
-        console.log(servico.servico);
         let sessionName = "";
         switch (servico.servico) {
             case 'create-session':
                 sessionName = servico.payload;
+                if(sessionName == null || sessionName == "") {
+                    console.error('Nome da sessão não informado');
+                    atualizarServico(servico.id, '2'); 
+                    break;
+                }
                 // sessionName é um texto gostaria de passar para json
                 sessionName = JSON.parse(sessionName).sessionName;                
                 createSession(sessionName);
@@ -159,15 +163,38 @@ async function processarServicos() {
                     await atualizarServico(servico.id, '2');
                 }
                 break;
-             case 'status-session':
-              sessionName = servico.payload;
-              // sessionName é um texto gostaria de passar para json
-              sessionName = JSON.parse(sessionName).sessionName;
-              let status = statusSession(sessionName);
-              if (status) {
-                  await atualizarStatusWhatsapp(servico.id, status);
-                  await atualizarServico(servico.id, '2');
-              }
+            case 'status-session':
+                sessionName = servico.payload;
+                // sessionName é um texto gostaria de passar para json
+                sessionName = JSON.parse(sessionName).sessionName;
+                let status = statusSession(sessionName);
+                if (status) {
+                    await atualizarStatusWhatsapp(servico.id, status);
+                    await atualizarServico(servico.id, '2');
+                }
+                break;
+            case "send-message":
+                let payload = JSON.parse(servico.payload);
+                let session = payload.sessionName;
+                let to = payload.to;
+                let message = payload.message;
+                const client = sessions[session];
+                if (!client) {
+                    console.error('Sessão não encontrada:', session);
+                    createSession(session)
+                    break;
+                }
+                client
+                    .sendText(to, message)
+                    .then((result) => {
+                        atualizarStatusWhatsapp(servico.id, result);
+                        atualizarServico(servico.id, '2');
+                    })
+                    .catch((error) => {
+                        console.error('Erro ao enviar mensagem:', error);
+                        atualizarServico(servico.id, '2');
+                    });
+                break;
             default:
                 console.error('Serviço não encontrado:', servico.servico);
         }
