@@ -24,6 +24,7 @@ app.use(express.json());
 
 async function verificarServicos() {
     try {
+        listarAtendimentoCadastrar();
         const [rows] = await pool.query('SELECT * FROM whatssapp_servicos WHERE status = ?', ['1']);
         return rows;
     } catch (err) {
@@ -31,7 +32,23 @@ async function verificarServicos() {
         throw err;
     }
 }
+async function listarAtendimentoCadastrar(){
+    // rodar api post https://solus.solussistema.com.br/api/atendimentos/listaratendimentocadastrar
+    // bearer token env.BEARER_TOKEN
 
+    const bearerToken = process.env.TOKEN_SOLUS;
+    const url = process.env.URL_SOLUS + '/api/atendimentos/listaratendimentocadastrar';
+    const axios = require('axios');
+    const config = {
+        headers: { Authorization: `Bearer ${bearerToken}` }
+    };
+    try {
+        const response = await axios.post(url, {}, config);
+    } catch (error) {
+        console.error('Erro ao buscar atendimentos:', error);
+    }
+
+}
 async function createSession(sessionName, id_servico = null) {
   var sessionAtual = sessionName;
   await venom
@@ -149,7 +166,7 @@ async function processarServicos() {
                     'servico': 'qr-code-temp',
                     'payload': json
                 };
-                cadastrarServico(newService); 
+                // cadastrarServico(newService); 
                 
                 break;
             case 'qr-code-temp':
@@ -180,8 +197,16 @@ async function processarServicos() {
                 let message = payload.message;
                 const client = sessions[session];
                 if (!client) {
+                    let status = statusSession(sessionName);
                     console.error('Sessão não encontrada:', session);
+                    console.error('Status Session:', status);
                     createSession(session)
+                    break;
+                }
+                // verificar parmetro to se é maior ou igual a 10
+                if(to.length < 10){
+                    console.error('Número de telefone inválido:', to);
+                    atualizarServico(servico.id, '2');
                     break;
                 }
                 client
