@@ -1,8 +1,44 @@
-node_modules
-./build
-!./build/.keep
-./tokens
-tokens
-build
-.vscode
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+.next/
+out/
+build/
+
+# Prisma
+backend/prisma/migrations/
+
+# WhatsApp sessions
+backend/tokens/
+backend/.wwebjs_auth/
+backend/.wwebjs_cache/
+tokens/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker-volumes/

@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zapzap_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zapzap
+      POSTGRES_PASSWORD: zapzap123
+      POSTGRES_DB: zapzap
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zapzap"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: zapzap_redis
+    restart: unless-stopped
+    command: redis-server --requirepass redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: zapzap_backend
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
+    environment:
+      DATABASE_URL: postgresql://zapzap:zapzap123@postgres:5432/zapzap
+      REDIS_URL: redis://:redis123@redis:6379
+      JWT_SECRET: supersecretjwtkey_change_in_production
+      API_PORT: 3333
+      NODE_ENV: development
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - whatsapp_sessions:/app/.wwebjs_auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: zapzap_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3333
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  whatsapp_sessions:

@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CompanyStatus {
+  ACTIVE
+  BLOCKED
+  CANCELLED
+  DEFAULTING
+}
+
+enum WhatsAppSessionStatus {
+  CONNECTED
+  DISCONNECTED
+  WAITING_QR
+  ERROR
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  ERROR
+  BLOCKED_NO_CREDIT
+  BLOCKED_LIMIT
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+model Company {
+  id              String        @id @default(uuid())
+  name            String
+  document        String        @unique
+  email           String        @unique
+  phone           String?
+  status          CompanyStatus @default(ACTIVE)
+  dailyLimit      Int           @default(100)
+  creditBalance   Int           @default(0)
+  plan            String?
+  renewalDate     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  sessions        WhatsAppSession[]
+  tokens          ApiToken[]
+  messages        Message[]
+  payments        Payment[]
+  creditLogs      CreditLog[]
+
+  @@map("companies")
+}
+
+model WhatsAppSession {
+  id           String                @id @default(uuid())
+  companyId    String
+  name         String
+  phone        String?
+  status       WhatsAppSessionStatus @default(DISCONNECTED)
+  qrCode       String?
+  sessionData  Json?
+  dailyLimit   Int?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  company      Company               @relation(fields: [companyId], references: [id])
+  tokens       ApiToken[]
+  messages     Message[]
+
+  @@map("whatsapp_sessions")
+}
+
+model ApiToken {
+  id          String   @id @default(uuid())
+  companyId   String
+  sessionId   String
+  name        String
+  tokenHash   String   @unique
+  tokenPrefix String
+  isActive    Boolean  @default(true)
+  dailyLimit  Int?
+  webhookUrl  String?
+  lastUsedAt  DateTime?
+  totalSent   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id])
+  session     WhatsAppSession  @relation(fields: [sessionId], references: [id])
+  messages    Message[]
+  usageLogs   ApiUsageLog[]
+
+  @@map("api_tokens")
+}
+
+model Message {
+  id          String           @id @default(uuid())
+  companyId   String
+  sessionId   String
+  tokenId     String?
+  direction   MessageDirection
+  phone       String
+  content     String
+  mediaUrl    String?
+  mediaType   String?
+  status      MessageStatus    @default(PENDING)
+  errorMsg    String?
+  venomMsgId  String?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id])
+  session     WhatsAppSession  @relation(fields: [sessionId], references: [id])
+  token       ApiToken?        @relation(fields: [tokenId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([sessionId, status])
+  @@index([phone])
+  @@map("messages")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  companyId     String
+  asaasId       String?       @unique
+  amount        Decimal       @db.Decimal(10, 2)
+  method        String?
+  status        PaymentStatus @default(PENDING)
+  description   String?
+  creditsGranted Int?
+  dueDate       DateTime?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  company       Company       @relation(fields: [companyId], references: [id])
+
+  @@map("payments")
+}
+
+model CreditLog {
+  id          String   @id @default(uuid())
+  companyId   String
+  amount      Int
+  type        String
+  description String?
+  adminId     String?
+  paymentId   String?
+  createdAt   DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@map("credit_logs")
+}
+
+model ApiUsageLog {
+  id        String   @id @default(uuid())
+  tokenId   String
+  ip        String?
+  endpoint  String
+  method    String
+  status    Int
+  createdAt DateTime @default(now())
+
+  token     ApiToken @relation(fields: [tokenId], references: [id])
+
+  @@index([tokenId, createdAt])
+  @@map("api_usage_logs")
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("admin")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
+}
